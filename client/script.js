@@ -1,0 +1,153 @@
+const typeInput = document.getElementById("type");
+const atmosphereInput = document.getElementById("atmosphere");
+const changeGreetingButton = document.getElementById("changeGreetingButton");
+const selectedOptionsDiv = document.getElementById("selectedOptions");
+const generatedGreetingDiv = document.getElementById("generatedGreeting");
+const generateGreetingButton = document.getElementById(
+  "generateGreetingButton"
+);
+
+const greetingsData = []; // Array to store the retrieved greetings
+let currentGreetingIndex = 0; // Index to keep track of the currently displayed greeting
+
+[typeInput, atmosphereInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    changeGreetingButton.style.display = "none";
+    generatedGreetingDiv.style.display = "none";
+    generateGreetingButton.style.display = "inline-block";
+    selectedOptionsDiv.innerHTML = "";
+    generatedGreetingDiv.innerHTML = "";
+  });
+});
+
+async function updateAdditionalQuestion() {
+  generateGreetingButton.style.display = "inline-block";
+  changeGreetingButton.style.display = "none";
+  generatedGreetingDiv.style.display = "none";
+  selectedOptionsDiv.innerHTML = "";
+  generatedGreetingDiv.innerHTML = "";
+
+  const selectedEvent = document.getElementById("event").value;
+  const additionalQuestionsDiv = document.getElementById("additionalQuestions");
+
+  // Clear previous questions
+  additionalQuestionsDiv.innerHTML = "";
+
+  // Add additional questions based on the selected event
+  if (selectedEvent === "birthday") {
+    additionalQuestionsDiv.innerHTML += '<label for="age">Enter age:</label>';
+    additionalQuestionsDiv.innerHTML +=
+      '<input type="number" id="age" class="additionalQuestionsInput" placeholder="age">';
+  } else if (selectedEvent === "wedding") {
+    additionalQuestionsDiv.innerHTML +=
+      '<label for="relation">Your relation to the couple:</label>';
+    additionalQuestionsDiv.innerHTML +=
+      '<input type="text" id="relation" class="additionalQuestionsInput" placeholder="relation">';
+  } else if (selectedEvent === "graduation") {
+    additionalQuestionsDiv.innerHTML +=
+      '<label for="degree">Enter degree:</label>';
+    additionalQuestionsDiv.innerHTML +=
+      '<input type="text" id="degree" class="additionalQuestionsInput" placeholder="degree">';
+  }
+  const additionalQuestionsInput = document.getElementsByClassName(
+    "additionalQuestionsInput"
+  )[0];
+  if (additionalQuestionsInput) {
+    additionalQuestionsInput.addEventListener("input", () => {
+      changeGreetingButton.style.display = "none";
+      generateGreetingButton.style.display = "inline-block";
+      generatedGreetingDiv.style.display = "none";
+      selectedOptionsDiv.innerHTML = "";
+      generatedGreetingDiv.innerHTML = "";
+    });
+  }
+}
+
+async function generateGreeting() {
+  const selectedEvent = document.getElementById("event").value;
+  const age = document.getElementById("age")
+    ? document.getElementById("age").value
+    : "";
+  const relation = document.getElementById("relation")
+    ? document.getElementById("relation").value
+    : "";
+  const degree = document.getElementById("degree")
+    ? document.getElementById("degree").value
+    : "";
+  const type = typeInput.value;
+  const atmosphere = atmosphereInput.value;
+
+  // Display selected options
+  selectedOptionsDiv.innerHTML = `<p><b>Event:</b> ${selectedEvent}</p>`;
+  if (age) selectedOptionsDiv.innerHTML += `<p><b>Age:</b> ${age}</p>`;
+  if (relation)
+    selectedOptionsDiv.innerHTML += `<p><b>Relation:</b> ${relation}</p>`;
+  if (degree) selectedOptionsDiv.innerHTML += `<p><b>Degree:</b> ${degree}</p>`;
+  if (type) selectedOptionsDiv.innerHTML += `<p><b>Type:</b> ${type}</p>`;
+  if (atmosphere)
+    selectedOptionsDiv.innerHTML += `<p><b>Atmosphere:</b> ${atmosphere}</p>`;
+
+  try {
+    // Call the server to generate a greeting
+    const dataBody = {
+      event: selectedEvent,
+      age,
+      relation,
+      degree,
+      type,
+      atmosphere,
+    };
+    const url = "http://localhost:3000/generate-greeting";
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(dataBody),
+    });
+
+    if (!response.ok) {
+      responseData = await response.json();
+      generatedGreetingDiv.innerHTML = `<p>Something went wrong 😕<br/>${responseData.error}</p>`;
+      generatedGreetingDiv.style.display = "inline-block";
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
+    greetingsData.length = 0; // Clear the existing greetings
+    currentGreetingIndex = 0;
+    greetingsData.push(...Object.values(data));
+
+    // Display the first greeting
+    displayCurrentGreeting();
+
+    changeGreetingButton.style.display = "inline-block";
+    generateGreetingButton.style.display = "none";
+  } catch (error) {
+    console.error("Error:", error);
+    greetingsData.length = 0;
+    currentGreetingIndex = 0;
+  }
+}
+
+function displayCurrentGreeting() {
+  // Check if there are greetings to display
+  if (greetingsData.length > 0) {
+    generatedGreetingDiv.innerText = `${greetingsData[currentGreetingIndex]}`;
+  } else {
+    generatedGreetingDiv.innerHTML = "<p>something went wrong 😕</p>";
+  }
+  generatedGreetingDiv.style.display = "inline-block";
+}
+
+function changeGreeting() {
+  // If all greetings have been viewed, make a new request else Move to the next greeting
+  if (currentGreetingIndex === greetingsData.length - 1) {
+    generateGreeting();
+  } else {
+    currentGreetingIndex = (currentGreetingIndex + 1) % greetingsData.length;
+    displayCurrentGreeting();
+  }
+}
+
+// Initial call to load the general questions
+updateAdditionalQuestion();
